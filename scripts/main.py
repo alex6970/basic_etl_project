@@ -1,4 +1,5 @@
 from time import time
+from numpy import append
 import requests
 import datetime
 import pandas as pd
@@ -9,8 +10,8 @@ pd.set_option('display.max_rows', None)
 
 # EXTRACT
 
-USER_ID = "11135754916"
-TOKEN = "BQAZS8n3G-b0D2sL7m5uJmYTLyoGoz04gepWWDQ-jwYn8faLD_PDJCf-Tc5LA0J5oQOJUEtPoypFAFfdBIDp9P5Z3PKy25n-_eiI_dhnPz0GRzMs_3pJLdu9SiAYGvPLI3nIaF956e_QBLsoXx4CM04o25bIjlv6EfsaQFNcvEYjz2mQOrF8eg"  # token expires after 3600 s
+# USER_ID = "11135754916"
+TOKEN = "BQDEGnHvEAxJZbEpcsnrRWzj85Pyb4GF_-KtJmsgiwJV1HucxSA_ffbm7p4Vv2efDhK1NxZdj4p457nps3aITFs9KGu8NQIlMkXTSpV6JovMz-kY1F00xvoTHygAVXU47qKYxVSLrrRgL8mrhjm79uiqmReLzmEEc2y5P0xLVuyGHDBbFgpH5g"  # token expires after 3600 s
 
 headers = {
     "Accept": "application/json",
@@ -22,13 +23,13 @@ headers = {
 today = datetime.datetime.now()
 yesterday = today - datetime.timedelta(days=1)
 
-
 # converting to unix milliseconds, as accepted by the API
 yesterday_unix = int(yesterday.timestamp()) * 1000 
 
 # request (up to 50 songs, max from spotify API)
 try:
-    req = requests.get("https://api.spotify.com/v1/me/player/recently-played?limit=50&after={time}".format(time=yesterday_unix), headers=headers)
+    req = requests.get("https://api.spotify.com/v1/me/player/recently-played?limit=50&after={time}".format(
+        time=yesterday_unix), headers=headers)
     data = req.json()
 
 except Exception as e : 
@@ -51,7 +52,6 @@ for item in data["items"] :
     played_at.append(item["played_at"])
     tmstp.append(item["played_at"][:10])
 
-
 # for x in range(2):
 #     print(song_name[x])
 #     print(album_name[x])
@@ -60,13 +60,14 @@ for item in data["items"] :
 #     print(tmstp[x])
 #     print("\n")
 
-df = pd.DataFrame(columns=["Song", "Artist", "Album", "Played at", "Timestamp"])
+df = pd.DataFrame(columns=["song_name", "artist",
+                  "album_name", "played_at", "tmstp"])
 
-df["Song"] = song_name
-df["Artist"] = artist
-df["Album"] = album_name
-df["Played at"] = played_at
-df["Timestamp"] = tmstp
+df["song_name"] = song_name
+df["artist"] = artist
+df["album_name"] = album_name
+df["played_at"] = played_at
+df["tmstp"] = tmstp
 
 # print(df.head())
 # print(df.shape)
@@ -83,7 +84,7 @@ def check_data_validation(df):
         bool_val = False
 
     # check if primary key is unique, no duplicates
-    if pd.Series(df["Played at"]).is_unique:
+    if pd.Series(df["played_at"]).is_unique:
         pass
     else:
         raise Exception("There are duplicated values. Primary key check violated.")
@@ -109,20 +110,45 @@ def check_data_validation(df):
     return bool_val
 
 if check_data_validation(df):
-    print("Data is valid Proceed to Load stage.")
+    print("Data is valid. Proceed to Load stage.")
 
 
 
 # LOAD
 
 try:
-    conn = sqlite3.connect('./database/pass.db')
+    conn = sqlite3.connect('./database/spotifydata_database.db')
     cur = conn.cursor()
 
 except Exception as e:
     print(e)
 
 
+cur.execute("""
+
+CREATE TABLE IF NOT EXISTS my_recently_played_songs (
+    song_name VARCHAR(200),
+    album_name VARCHAR(200),
+    artist VARCHAR(200),
+    played_at VARCHAR(200) PRIMARY KEY,
+    tmstp VARCHAR(200)
+)
+
+""")
+
+print("Database opened.")
+
+try:
+    df.to_sql("my_recently_played_songs", con=conn, if_exists='replace', index=False) #append instead when done
+    print("Data was successfully added to the table.")
+except Exception as e : 
+    print("Error occured :",e)
+
+# inserted_data = cur.execute("SELECT * FROM my_recently_played_songs").fetchall()
+# for data in inserted_data:
+#     print(data)
+
+conn.close()
 
 
-# TODO : github + extract done-> transform part
+# TODO : github udpates + Load + orchestration + getting token automation
