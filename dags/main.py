@@ -1,3 +1,4 @@
+import base64
 from time import time
 import requests
 import datetime
@@ -54,8 +55,41 @@ def run_spotify_etl():
     
     # EXTRACT
 
-    # USER_ID = "11135754916"
-    TOKEN = "BQDqlEwzcQf5Wzf_NCfWzbQVX1eIfm_uT8ijuUAJbJQMTqRksK7aaorcW-cXbTGzY2-CAccwtc_JvRnaUUH5JuhumklGfeTq5w6worvnPSSnAIqlt2LXTPFGp6kuWstXEa0N_UrHR2wLwrLhNZ_0yX_nTsTlDinvM-Atz9tN9GqTMzlw7qHstA"  # token expires after 3600 s
+
+    # ## AUTHENTICATION
+
+    # CLIENT_ID = "885bd4b40bf140e68148dc9b0e792dc5"
+    # CLIENT_SECRET = "4b54e2e63b0f4d099672d121876148ad"
+    # # TOKEN = "BQDqlEwzcQf5Wzf_NCfWzbQVX1eIfm_uT8ijuUAJbJQMTqRksK7aaorcW-cXbTGzY2-CAccwtc_JvRnaUUH5JuhumklGfeTq5w6worvnPSSnAIqlt2LXTPFGp6kuWstXEa0N_UrHR2wLwrLhNZ_0yX_nTsTlDinvM-Atz9tN9GqTMzlw7qHstA"  # token expires after 3600 s
+
+    # # Necessary encoding/deconding credentials
+    # client_creds = f"{CLIENT_ID}:{CLIENT_SECRET}"
+    # base64Bytes = base64.b64encode(client_creds.encode())
+    # client_creds_final = base64Bytes.decode()
+
+    # # header data settings
+    # data = {}
+    # data['grant_type'] = "client_credentials"
+    # data['json'] = True
+    # data["scope"]= "playlist-modify-private user-library-read"
+
+    # headers_auth = {}
+    # headers_auth["Authorization"] = f"Basic {client_creds_final}"
+
+    # AUTH_URL = 'https://accounts.spotify.com/api/token'
+
+
+    # # TOKEN access request
+    # auth_response = requests.post(AUTH_URL, data=data, headers=headers_auth)
+
+    # auth_data_json = auth_response.json()
+
+    # access_token = auth_data_json['access_token']
+
+    # print(access_token)
+    # print(auth_response.status_code)
+
+    TOKEN = "BQA0-CaLfRZj0W92qWSGpT-2S-d1KD_kuuLsEwN3ZTZtKMb120z0_d3RmCF66JPrvXMAUWpL9oj5Y90Z27H1qf0sFoHAKrOoNXTihjDxbMh7JDDTlPTKdf7Z012t08tUGIvd4J460haNEf_-VBMHUzF-O8NEIqi7NyjIjgmJh0m1vdTpB3q7xg"
 
     headers = {
         "Accept": "application/json",
@@ -66,13 +100,20 @@ def run_spotify_etl():
     # over the last 24 hours
     today = datetime.datetime.now()
     yesterday = today - datetime.timedelta(days=1)
-
-    # converting to unix milliseconds, as accepted by the API
     yesterday_unix = int(yesterday.timestamp()) * 1000
 
     # request (up to 50 songs, max from spotify API)
     try:
         req = requests.get("https://api.spotify.com/v1/me/player/recently-played?limit=50&after={time}".format(time=yesterday_unix), headers=headers)
+        
+        if req.status_code == 200 :
+            print("Request link successfull")
+        else:
+            print("Nope")
+            print(req.status_code)
+            print(req)
+            exit()
+
         data = req.json()
 
     except Exception as e:
