@@ -38,6 +38,3 @@ run_etl = PythonOperator(
 )
 
 run_etl
-
-
-# faire en sorte d'importer la focntion run etl de scripts > main (faire des tests entre scripts prython dans deux dossiers diff pour voir)
