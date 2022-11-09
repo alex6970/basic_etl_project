@@ -48,48 +48,62 @@ def check_data_validation(df):
     return bool_val
 
 
-
-
-
 def run_spotify_etl():
     
     # EXTRACT
 
 
-    # ## AUTHENTICATION
+    ## AUTHENTICATION
 
-    # CLIENT_ID = "885bd4b40bf140e68148dc9b0e792dc5"
-    # CLIENT_SECRET = "4b54e2e63b0f4d099672d121876148ad"
-    # # TOKEN = "BQDqlEwzcQf5Wzf_NCfWzbQVX1eIfm_uT8ijuUAJbJQMTqRksK7aaorcW-cXbTGzY2-CAccwtc_JvRnaUUH5JuhumklGfeTq5w6worvnPSSnAIqlt2LXTPFGp6kuWstXEa0N_UrHR2wLwrLhNZ_0yX_nTsTlDinvM-Atz9tN9GqTMzlw7qHstA"  # token expires after 3600 s
+    CLIENT_ID = "58da794fd65e448f96ccbf816bfb673c"
+    CLIENT_SECRET = "6dc17c50974046f3bcf206d737f7fe80"
 
-    # # Necessary encoding/deconding credentials
-    # client_creds = f"{CLIENT_ID}:{CLIENT_SECRET}"
-    # base64Bytes = base64.b64encode(client_creds.encode())
-    # client_creds_final = base64Bytes.decode()
+    def get_auth_tkn(client_id, client_secret):
 
-    # # header data settings
-    # data = {}
-    # data['grant_type'] = "client_credentials"
-    # data['json'] = True
-    # data["scope"]= "playlist-modify-private user-library-read"
+        # Necessary encoding/deconding credentials
+        client_creds = f"{client_id}:{client_secret}"
+        base64Bytes = base64.b64encode(client_creds.encode('ascii'))
+        client_creds_final = base64Bytes.decode('ascii')
 
-    # headers_auth = {}
-    # headers_auth["Authorization"] = f"Basic {client_creds_final}"
+        # # header data settings
+        # data = {}
+        # data['grant_type'] = "client_credentials"
+        # # data['json'] = True
+        # # data["scope"]= "user-read-recently-played"
 
-    # AUTH_URL = 'https://accounts.spotify.com/api/token'
+        # headers_auth = {}
+        # headers_auth["Authorization"] = f"Basic {client_creds_final}"
+
+        token_data = {
+            'grant_type': 'authorization_code',
+            'response_type': 'code',
+            'redirect_uri': 'https://localhost:8888/callback'  # currently on localhost and whitelisted on Spotify
+        }
 
 
-    # # TOKEN access request
-    # auth_response = requests.post(AUTH_URL, data=data, headers=headers_auth)
+        token_header = {
+            'Authorization': f'Basic {client_creds_final}',
+            'Content-Type': 'application/x-www-form-urlencoded'
+            }
 
-    # auth_data_json = auth_response.json()
+        # AUTH_URL = 'https://accounts.spotify.com/authorize?client_id=58da794fd65e448f96ccbf816bfb673c&response_type=code&redirect_uri=https%3A%2F%localhost:8888%2Fcallback&scope=user-read-recently-played'
 
-    # access_token = auth_data_json['access_token']
+        # TOKEN access request
+        auth_response = requests.post(
+            'https://accounts.spotify.com/api/token', data=data, headers=headers_auth)
+        auth_data_json = auth_response.json()
 
-    # print(access_token)
-    # print(auth_response.status_code)
+        access_token = auth_data_json['access_token']
 
-    TOKEN = "BQA0-CaLfRZj0W92qWSGpT-2S-d1KD_kuuLsEwN3ZTZtKMb120z0_d3RmCF66JPrvXMAUWpL9oj5Y90Z27H1qf0sFoHAKrOoNXTihjDxbMh7JDDTlPTKdf7Z012t08tUGIvd4J460haNEf_-VBMHUzF-O8NEIqi7NyjIjgmJh0m1vdTpB3q7xg"
+        print(access_token)
+        print(auth_response.status_code)
+
+        return access_token
+
+    acc_token = get_auth_tkn(CLIENT_ID, CLIENT_SECRET)
+
+    ## TO CHANGE EVERYTIME
+    # TOKEN = "BQB8mJO4N66nUUytRQJku3wmppnc5fBgewOvEH0YgscND3tqfJKiYkHdFuHFO9G7nT02kAwnwLl7Qe6drUPm1LnNTl-XTLDX0nXRkpfO2UTc4tLpLW2GF5cV2FmS8wfVJ3vBzWs2_fyuzlEYvI_R3tWxLlHq2IUVRJGC7eLaYoCgR_wV5rYWdQ"
 
     headers = {
         "Accept": "application/json",
@@ -103,22 +117,16 @@ def run_spotify_etl():
     yesterday_unix = int(yesterday.timestamp()) * 1000
 
     # request (up to 50 songs, max from spotify API)
+
     try:
         req = requests.get("https://api.spotify.com/v1/me/player/recently-played?limit=50&after={time}".format(time=yesterday_unix), headers=headers)
-        
-        if req.status_code == 200 :
-            print("Request link successfull")
-        else:
-            print("Nope")
-            print(req.status_code)
-            print(req)
-            exit()
-
+        print("Request status : ", req.status_code)
         data = req.json()
 
     except Exception as e:
         print(e)
-
+        print("The script is shutting.")
+        exit()
 
     # print(data)
     # print(data["items"][:2])
@@ -136,13 +144,6 @@ def run_spotify_etl():
         played_at.append(item["played_at"])
         tmstp.append(item["played_at"][:10])
 
-    # for x in range(2):
-    #     print(song_name[x])
-    #     print(album_name[x])
-    #     print(artist[x])
-    #     print(played_at[x])
-    #     print(tmstp[x])
-    #     print("\n")
 
     df = pd.DataFrame(columns=["song_name", "artist",
                     "album_name", "played_at", "tmstp"])
@@ -153,15 +154,16 @@ def run_spotify_etl():
     df["played_at"] = played_at
     df["tmstp"] = tmstp
 
-    # print(df.head())
-    # print(df.shape)
+
 
 
     # TRANFORM CF
     if check_data_validation(df):
         print("Data is valid. Proceed to Load stage.")
 
-    print("hereeeee")
+
+
+
     # LOAD
     try:
         conn = sqlite3.connect('./dags/spotify_data_database.db')
@@ -187,7 +189,7 @@ def run_spotify_etl():
 
     try:
         # cur.execute("DELETE FROM my_recently_played_songs;")
-        df.to_sql("my_recently_played_songs", con=conn, if_exists='replace', index=False)  # append instead when done
+        df.to_sql("my_recently_played_songs", con=conn, if_exists='replace', index=False)  # if_exists=append instead => adds news to the actual data
         print("Data was successfully added to the table.")
     except Exception as e:
         print("Error occured while updating table :", e)
@@ -200,6 +202,4 @@ def run_spotify_etl():
 
 run_spotify_etl()
 
-
-# TODO : github udpates + delete everyhting inside database (run this script) and re run to check if done daily (or hourly?) + check organisation of dags/airflow/docker
 
